@@ -1,23 +1,31 @@
 import pandas as pd
+import numpy as np
 from pathlib import Path
+from matplotlib.path import Path as MplPath
 
-RAW_CSV_PATH = Path("data/raw/IBTrACS/ibtracs.WP.list.v04r01.csv")
-OUT_TRACKS_PATH = Path("data/processed/IBTrACS/ibtracs_par_1950_2023_tracks.csv")
-OUT_STORMS_PATH = Path("data/processed/IBTrACS/ibtracs_par_1950_2023_storms.csv")
+RAW_CSV_PATH = Path("data/raw/IBTrACS/ibtracs_wp_full.csv.gz")
+OUT_TRACKS_PATH = Path("data/processed/IBTrACS/v2/ibtracs_par_1950_2023_tracks_2.csv")
+OUT_STORMS_PATH = Path("data/processed/IBTrACS/v2/ibtracs_par_1950_2023_storms_2.csv")
 
 # because our dataset from era5 is also 1950-2023
 START_YEAR = 1950
 END_YEAR = 2023
-
-# Rough Philippine Area of Responsibility (PAR) using simple box approximation
-PAR_LAT_MIN, PAR_LAT_MAX = 5, 25
-PAR_LON_MIN, PAR_LON_MAX = 115, 135
 
 WIND_COLUMN = "USA_WIND" # one wind standard for consistency i reckon
 KEEP_NATURE = {"TD", "TS", "TY"} # all tropical cyclones (TCs): tropical depressions, storms, typhoons
 
 # minimal for now probably (add more later if needed)
 USE_COLUMNS = ["SID", "ISO_TIME", "LAT", "LON", "NATURE", WIND_COLUMN]
+
+# PAGASA PAR polygon (lon, lat) points in order
+PAR_POLYGON = [
+    (115, 5),
+    (115, 15),
+    (120, 21),
+    (120, 25),
+    (135, 25),
+    (135, 5),
+]
 
 #basic checks (file existence + required columns)
 if not RAW_CSV_PATH.exists():
@@ -49,12 +57,10 @@ dataframe = dataframe[(dataframe["year"] >= START_YEAR) & (dataframe["year"] <= 
 # Restrict to tropical systems (Tropical Cyclones only)
 dataframe = dataframe[dataframe["NATURE"].isin(KEEP_NATURE)]
 
-
-# Philippine Area of Responsibility (PAR) filtering (box approximation as mentioned above)
-inside_par = (
-    (dataframe["LAT"] >= PAR_LAT_MIN) & (dataframe["LAT"] <= PAR_LAT_MAX) &
-    (dataframe["LON"] >= PAR_LON_MIN) & (dataframe["LON"] <= PAR_LON_MAX)
-)
+# Checking for PAR more accurately using polygon method instead of square approximation
+par_path = MplPath(PAR_POLYGON)  # polygon expects (lon, lat)
+points = np.column_stack([dataframe["LON"].to_numpy(), dataframe["LAT"].to_numpy()])
+inside_par = par_path.contains_points(points)
 
 # get unique storm IDs that entered PAR (removes duplicates automatically)
 par_storm_ids = dataframe.loc[inside_par, "SID"].unique()
