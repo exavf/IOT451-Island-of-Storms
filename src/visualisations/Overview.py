@@ -61,6 +61,145 @@ def _intensity_pie(counts: dict) -> None:
     ax.axis("equal")
     st.pyplot(fig)
 
+def render_intensity_frequency_timeseries(par_df: pd.DataFrame, landfall_df: pd.DataFrame) -> None:
+    """
+    Interactive line chart: annual frequency by intensity class.
+    - User can switch between PAR (exposure) and Landfall (impact)
+    - User can select year range
+    - Lines are coloured by intensity class (Altair default palette)
+    """
+    import altair as alt  # lazy import so pages stay light
+
+    st.subheader("Annual frequency by intensity class")
+
+    # Choose dataset (exposure vs impact)
+    mode = st.radio(
+        "View:",
+        ["PAR entries (exposure)", "Philippine landfall (impact)"],
+        horizontal=True,
+    )
+
+    if mode == "PAR entries (exposure)":
+        df = par_df.copy()
+        year_col = "start_year"
+        intensity_col = "par_peak_intensity"
+    else:
+        df = landfall_df.copy()
+
+        # landfall intensity preferred; fallback to peak intensity if needed
+        intensity_col = "landfall_intensity" if "landfall_intensity" in df.columns else "peak_intensity"
+
+        # if your v4 has any_landfall, filter to True
+        if "any_landfall" in df.columns:
+            df = df[df["any_landfall"] == True].copy()
+
+        # v4 should ideally have start_year; if not, derive from first_landfall_time
+        if "start_year" in df.columns:
+            year_col = "start_year"
+        elif "first_landfall_time" in df.columns:
+            df["first_landfall_time"] = pd.to_datetime(df["first_landfall_time"], errors="coerce")
+            df["start_year"] = df["first_landfall_time"].dt.year
+            year_col = "start_year"
+        else:
+            st.error("Landfall dataset needs 'start_year' or 'first_landfall_time' to plot a yearly time series.")
+            return
+
+    # Clean columns
+    df[year_col] = pd.to_numeric(df[year_col], errors="coerce")
+    df = df.dropna(subset=[year_col])
+    df[year_col] = df[year_col].astype(int)
+
+    df[intensity_col] = df[intensity_col].astype(str).str.upper().str.strip()
+    df = df[df[intensity_col].isin(["TD", "TS", "TY", "STY"])]
+
+    if df.empty:
+        st.warning("No rows available after filtering. Check intensity labels and year column.")
+        return
+
+    # Year range selector
+    min_year, max_year = int(df[year_col].min()), int(df[year_col].max())
+    year_range = st.slider("Year range", min_year, max_year, (min_year, max_year), step=1)
+
+    df = df[(df[year_col] >= year_range[0]) & (df[year_col] <= year_range[1])]
+
+    # Aggregate annual counts by class
+    ts = (
+        df.groupby([year_col, intensity_col])
+        .size()
+        .reset_index(name="storm_count")
+        .rename(columns={year_col: "year", intensity_col: "intensity"})
+        .sort_values("year")
+    )
+
+    # Optional: let user choose which lines to show
+    selected = st.multiselect(
+        "Intensity classes",
+        ["TD", "TS", "TY", "STY"],
+        default=["TD", "TS", "TY", "STY"],
+    )
+    ts = ts[ts["intensity"].isin(selected)]
+
+    if ts.empty:
+        st.warning("No data for the selected classes/year range.")
+        return
+
+    chart = (
+        alt.Chart(ts)
+        .mark_line(point=False)
+        .encode(
+            x=alt.X("year:Q", title="Year"),
+            y=alt.Y("storm_count:Q", title="Storm count"),
+            color=alt.Color("intensity:N", title="Intensity class"),  # different colours automatically
+            tooltip=["year:Q", "intensity:N", "storm_count:Q"],
+        )
+        .properties(height=320)
+        .interactive()
+    )
+
+    st.altair_chart(chart, use_container_width=True)
+
+    st.caption(
+        "Counts are based on one row per storm in the selected dataset. "
+        "PAR uses intensity reached within PAR; landfall uses intensity at first Philippine landfall."
+    )
+
+    st.markdown("#### How to interpret this section")
+    st.write(
+        "- **Conversion rate**: fraction of PAR-entering storms that made Philippine landfall.\n"
+        "- **Severity shift**: how the TY+STY share changes when restricting to landfall storms.\n"
+        "- Differences are expected because landfall is a smaller subset shaped by track + intensity evolution."
+    )
+
+    st.markdown("#### Why this matters")
+    st.write(
+        "Separating **exposure** (storms that enter PAR) from **impact** (storms that make landfall) helps avoid misleading conclusions. "
+        "For example, storm counts within PAR can change without the same change being felt on the ground in the Philippines. "
+        "This dashboard treats landfall as the subset that is most relevant for real-world disruption, while PAR captures the broader risk environment."
+    )
+
+    st.divider()
+
+    st.subheader("Evidence from literature")
+    st.markdown(
+        """
+        Recent research shows that tropical cyclone impacts in the Philippines can intensify even when storm counts
+        within PAR decline, highlighting the need to distinguish between **exposure** and **impact**.
+
+        **Reference:**  
+        [Basconcillo, J. and Bangquiao, N. (2025), Recent increase in the number of Super Typhoons in the Philippines]
+        (https://www.sciencedirect.com/science/article/pii/S2225603225000402)
+        """
+    )
+    with st.expander("Data provenance notes"):
+        st.write(
+            "- **IBTrACS v3 (within PAR):** Storm-level summaries for all tropical cyclones entering PAR, "
+            "including `par_peak_intensity`, used to characterise regional exposure.\n"
+            "- **IBTrACS v4 (landfall):** Subset of storms that made Philippine landfall, "
+            "including `landfall_intensity`, used to capture realised national impact.\n"
+            "- **ERA5 climate indices:** Nine precipitation and extreme-rainfall variables used later in the "
+            "dashboard to explore links between storm behaviour and hydro-climatic extremes."
+        )
+
 
 def render_overview_exposure_vs_impact(par_df: pd.DataFrame, landfall_df: pd.DataFrame) -> None:
     # sanity checks so we don’t render nonsense if files change
@@ -180,41 +319,4 @@ def render_overview_exposure_vs_impact(par_df: pd.DataFrame, landfall_df: pd.Dat
         "In this dashboard, the PAR panel uses the strongest intensity reached **while inside PAR**, "
         "and the landfall panel uses intensity **at first Philippine landfall**."
     )
-
-    st.markdown("#### How to interpret this section")
-    st.write(
-        "- **Conversion rate**: fraction of PAR-entering storms that made Philippine landfall.\n"
-        "- **Severity shift**: how the TY+STY share changes when restricting to landfall storms.\n"
-        "- Differences are expected because landfall is a smaller subset shaped by track + intensity evolution."
-    )
-
-    st.markdown("#### Why this matters")
-    st.write(
-        "Separating **exposure** (storms that enter PAR) from **impact** (storms that make landfall) helps avoid misleading conclusions. "
-        "For example, storm counts within PAR can change without the same change being felt on the ground in the Philippines. "
-        "This dashboard treats landfall as the subset that is most relevant for real-world disruption, while PAR captures the broader risk environment."
-    )
-
-    st.divider()
-
-    st.subheader("Evidence from literature")
-    st.markdown(
-        """
-        Recent research shows that tropical cyclone impacts in the Philippines can intensify even when storm counts
-        within PAR decline, highlighting the need to distinguish between **exposure** and **impact**.
-
-        **Reference:**  
-        [Basconcillo, J. and Bangquiao, N. (2025), Recent increase in the number of Super Typhoons in the Philippines]
-        (https://www.sciencedirect.com/science/article/pii/S2225603225000402)
-        """
-    )
-    with st.expander("Data provenance notes"):
-        st.write(
-            "- **IBTrACS v3 (within PAR):** Storm-level summaries for all tropical cyclones entering PAR, "
-            "including `par_peak_intensity`, used to characterise regional exposure.\n"
-            "- **IBTrACS v4 (landfall):** Subset of storms that made Philippine landfall, "
-            "including `landfall_intensity`, used to capture realised national impact.\n"
-            "- **ERA5 climate indices:** Nine precipitation and extreme-rainfall variables used later in the "
-            "dashboard to explore links between storm behaviour and hydro-climatic extremes."
-        )
 
