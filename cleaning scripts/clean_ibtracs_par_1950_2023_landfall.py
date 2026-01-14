@@ -7,8 +7,8 @@ from matplotlib.path import Path as MplPath
 RAW_CSV_PATH = Path("data/raw/IBTrACS/ibtracs_wp_full.csv.gz")
 PH_GEOJSON_PATH = Path("data/raw/boundaries/philippines.geojson")
 
-OUT_TRACKS_PATH = Path("data/processed/IBTrACS/v4/ibtracs_ph_landfall_1950_2023_tracks.csv")
-OUT_STORMS_PATH = Path("data/processed/IBTrACS/v4/ibtracs_ph_landfall_1950_2023_storms.csv")
+OUT_TRACKS_PATH = Path("data/processed/IBTrACS/v4_landfall/ibtracs_ph_landfall_1950_2023_tracks.csv")
+OUT_STORMS_PATH = Path("data/processed/IBTrACS/v4_landfall/ibtracs_ph_landfall_1950_2023_storms.csv")
 
 START_YEAR = 1950
 END_YEAR = 2023
