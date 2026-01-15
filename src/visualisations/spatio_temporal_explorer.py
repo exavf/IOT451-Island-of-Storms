@@ -12,6 +12,33 @@ def _load_geojson(p: Path) -> dict:
     with open(p, "r", encoding="utf-8") as f:
         return json.load(f)
 
+@st.cache_data(show_spinner=False)
+def _heatmap_points(tracks_df: pd.DataFrame, storms_df: pd.DataFrame, land_only_flag: bool) -> pd.DataFrame:
+    sids = set(storms_df["SID"].unique().tolist())
+    t = tracks_df[tracks_df["SID"].isin(sids)].copy()
+
+    # optional land-only
+    if land_only_flag and "on_ph_land" in t.columns:
+        t = t[t["on_ph_land"]]
+
+    if t.empty:
+        return pd.DataFrame()
+
+    # lon for plotting
+    if "LON_PLOT" not in t.columns:
+        if "LON_180" in t.columns:
+            t["LON_PLOT"] = t["LON_180"]
+        else:
+            t["LON_PLOT"] = t["LON"]
+
+    t = t.dropna(subset=["LAT", "LON_PLOT"])
+
+    # keep small, avoid dragging 100k+ rows into the deck
+    keep = ["SID", "LAT", "LON_PLOT", "USA_WIND"]
+    keep = [c for c in keep if c in t.columns]
+    t = t[keep].copy()
+
+    return t
 
 @st.cache_data(show_spinner=False)
 def _build_paths(tracks_df: pd.DataFrame, storms_df: pd.DataFrame, land_only_flag: bool) -> pd.DataFrame:
@@ -103,59 +130,163 @@ def render_spatio_temporal_explorer(
     with st.sidebar:
         st.header("Filters")
 
+        # time + intensity
         y0 = int(storms_df["start_year"].min())
         y1 = int(storms_df["start_year"].max())
-        year_min, year_max = st.slider("Year range", y0, y1, (y0, y1), 1)
+        year_min, year_max = st.slider(
+            "Year range",
+            y0, y1, (y0, y1), 1
+        )
 
         base = ["TD", "TS", "TY", "STY"]
-        present = set(storms_df["peak_intensity"].dropna().unique().tolist())
-        opts = [x for x in base if x in present] or sorted(list(present))
+        present = set(storms_df["peak_intensity"].dropna().unique())
+        intensity_opts = [x for x in base if x in present] or sorted(present)
 
-        ints = st.multiselect("Landfall intensity", opts, default=opts)
+        intensities = st.multiselect(
+            "Landfall intensity",
+            intensity_opts,
+            default=intensity_opts,
+        )
 
-        land_only = st.toggle("Only show points on PH land", value=False)
+        st.markdown("---")
 
-        color_mode = st.selectbox(
-            "Colour by",
-            ["Landfall intensity", "Max wind (kt)", "PAR peak intensity"],
-            index=0,
+        # map behaviour
+        map_mode = st.selectbox(
+            "Map mode",
+            ["Landfall points", "Heatmap", "Tracks (selected only)"],
+            index=1,
+        )
+
+        # track colouring (only matters for tracks)
+        if map_mode == "Tracks (selected only)":
+            color_mode = st.selectbox(
+                "Track colour",
+                ["Landfall intensity", "Max wind (kt)", "PAR peak intensity"],
+                index=0,
+            )
+        else:
+            color_mode = "Landfall intensity"
+
+        # heatmap tuning
+        if map_mode == "Heatmap":
+            heat_weight = st.selectbox(
+                "Heat weight",
+                ["Density", "Wind-weighted"],
+                index=0,
+            )
+
+            max_points = st.slider(
+                "Max points",
+                5_000, 120_000, 40_000, 5_000
+            )
+        else:
+            heat_weight = "Density"
+            max_points = 40_000
+
+        # spatial mask
+        land_only = st.toggle(
+            "Only show points on PH land",
+            value=False,
         )
 
     # storm filter
     storms_f = storms_df[
         storms_df["start_year"].between(year_min, year_max)
-        & storms_df["peak_intensity"].isin(ints)
+        & storms_df["peak_intensity"].isin(intensities)
     ].copy()
+
+    if storms_f.empty:
+        st.warning("No storms match the selected filters.")
+        st.stop()
+
+    # choose what to render
+    if map_mode == "Heatmap":
+        pts = _heatmap_points(tracks_df, storms_f, land_only)
+
+        if pts.empty:
+            st.warning("No points available for heatmap.")
+            st.stop()
+
+        if heat_weight == "Wind-weighted" and "USA_WIND" in pts.columns:
+            pts["weight"] = pd.to_numeric(pts["USA_WIND"], errors="coerce").fillna(0.0)
+        else:
+            pts["weight"] = 1.0
+
+        if len(pts) > max_points:
+            pts = pts.sample(n=max_points, random_state=42)
+
+    elif map_mode == "Tracks (selected only)":
+        paths = _build_paths(tracks_df, storms_f, land_only)
+
+        if paths.empty:
+            st.warning("No tracks to render for this selection.")
+            st.stop()
+
+        paths = _add_color(paths, color_mode)
+
+        a, b = st.columns(2)
+        with a:
+            st.metric("Storms", f"{storms_f['SID'].nunique():,}")
+        with b:
+            st.metric("Rendered tracks", f"{len(paths):,}")
+
+    else:
+        st.info("Landfall points mode not wired yet. Switch to Heatmap or Tracks for now.")
+        st.stop()
+
+
 
     # build paths (always)
     paths = _build_paths(tracks_df, storms_f, land_only)
 
-    if paths.empty:
-        st.warning("No tracks for this filter.")
-        st.stop()
-
     paths = _add_color(paths, color_mode)
 
     a, b = st.columns(2)
-    with a:
-        st.metric("Storms", f"{storms_f['SID'].nunique():,}")
-    with b:
-        st.metric("Rendered tracks", f"{len(paths):,}")
+
+    if map_mode == "Heatmap":
+        with a:
+            st.metric("Storms", f"{storms_f['SID'].nunique():,}")
+        with b:
+            st.metric("Heatmap points", f"{len(pts):,}")
+
+    elif map_mode == "Tracks (selected only)":
+        with a:
+            st.metric("Storms", f"{storms_f['SID'].nunique():,}")
+        with b:
+            st.metric("Rendered tracks", f"{len(paths):,}")
 
     # layers (PH first)
     layers: list[pdk.Layer] = []
 
-    layers.append(
-        pdk.Layer(
-            "GeoJsonLayer",
-            data=ph,
-            stroked=True,
-            filled=False,
-            get_line_color=[0, 0, 0, 140],
-            line_width_min_pixels=1,
-            pickable=False,
+    if map_mode == "Heatmap":
+        layers.append(
+            pdk.Layer(
+                "HeatmapLayer",
+                data=pts,
+                get_position=["LON_PLOT", "LAT"],
+                get_weight="weight",
+                radius_pixels=35,
+                intensity=1.2,
+                threshold=0.05,
+                pickable=False,
+            )
         )
-    )
+
+    elif map_mode == "Tracks (selected only)":
+        layers.append(
+            pdk.Layer(
+                "PathLayer",
+                data=paths,
+                get_path="path",
+                get_color="color",
+                get_width=3,
+                width_scale=1,
+                width_min_pixels=2,
+                pickable=True,
+                auto_highlight=True,
+            )
+        )
+
 
     if par is not None:
         layers.append(
