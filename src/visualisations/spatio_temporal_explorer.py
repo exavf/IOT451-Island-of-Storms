@@ -133,19 +133,27 @@ def render_spatio_temporal_explorer(
         # time + intensity
         y0 = int(storms_df["start_year"].min())
         y1 = int(storms_df["start_year"].max())
+
+        default_start = max(y0, 2013)
+        default_end = min(y1, 2017)
+
         year_min, year_max = st.slider(
             "Year range",
-            y0, y1, (y0, y1), 1
+            y0, y1,
+            (default_start, default_end),
+            1
         )
+
 
         base = ["TD", "TS", "TY", "STY"]
         present = set(storms_df["peak_intensity"].dropna().unique())
         intensity_opts = [x for x in base if x in present] or sorted(present)
+        default_ints = ["STY"] if "STY" in intensity_opts else intensity_opts
 
         intensities = st.multiselect(
             "Landfall intensity",
             intensity_opts,
-            default=intensity_opts,
+            default=default_ints,
         )
 
         st.markdown("---")
@@ -174,14 +182,8 @@ def render_spatio_temporal_explorer(
                 ["Density", "Wind-weighted"],
                 index=0,
             )
-
-            max_points = st.slider(
-                "Max points",
-                5_000, 120_000, 40_000, 5_000
-            )
         else:
             heat_weight = "Density"
-            max_points = 40_000
 
         # spatial mask
         land_only = st.toggle(
@@ -211,9 +213,6 @@ def render_spatio_temporal_explorer(
             pts["weight"] = pd.to_numeric(pts["USA_WIND"], errors="coerce").fillna(0.0)
         else:
             pts["weight"] = 1.0
-
-        if len(pts) > max_points:
-            pts = pts.sample(n=max_points, random_state=42)
 
     elif map_mode == "Tracks (selected only)":
         paths = _build_paths(tracks_df, storms_f, land_only)
@@ -255,9 +254,37 @@ def render_spatio_temporal_explorer(
         with b:
             st.metric("Rendered tracks", f"{len(paths):,}")
 
-    # layers (PH first)
+    # layers (fresh each run)
     layers: list[pdk.Layer] = []
 
+    # PH outline first
+    layers.append(
+        pdk.Layer(
+            "GeoJsonLayer",
+            data=ph,
+            stroked=True,
+            filled=False,
+            get_line_color=[0, 0, 0, 140],
+            line_width_min_pixels=1,
+            pickable=False,
+        )
+    )
+
+    # optional PAR outline
+    if par is not None:
+        layers.append(
+            pdk.Layer(
+                "GeoJsonLayer",
+                data=par,
+                stroked=True,
+                filled=False,
+                get_line_color=[30, 30, 30, 130],
+                line_width_min_pixels=1,
+                pickable=False,
+            )
+        )
+
+    # ONLY ONE of these gets added
     if map_mode == "Heatmap":
         layers.append(
             pdk.Layer(
@@ -287,33 +314,6 @@ def render_spatio_temporal_explorer(
             )
         )
 
-
-    if par is not None:
-        layers.append(
-            pdk.Layer(
-                "GeoJsonLayer",
-                data=par,
-                stroked=True,
-                filled=False,
-                get_line_color=[30, 30, 30, 130],
-                line_width_min_pixels=1,
-                pickable=False,
-            )
-        )
-
-    layers.append(
-        pdk.Layer(
-            "PathLayer",
-            data=paths,
-            get_path="path",
-            get_color="color",
-            get_width=3,
-            width_scale=1,
-            width_min_pixels=2,
-            pickable=True,
-            auto_highlight=True,
-        )
-    )
 
     view = pdk.ViewState(latitude=12.5, longitude=122.5, zoom=4.5, pitch=0)
 
