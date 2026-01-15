@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 import pandas as pd
 import streamlit as st
@@ -15,10 +17,28 @@ from visualisations.Overview import (
 
 PAR_V3 = Path("data/processed/IBTrACS/v3_within_par/ibtracs_par_1950_2023_storms_3.csv")
 LANDFALL_V4 = Path("data/processed/IBTrACS/v4_landfall/ibtracs_ph_landfall_1950_2023_storms.csv")
+ERA5_MERGED_CSV_PATH = Path("data/processed/era5/merged_era5_data.csv")
 
 @st.cache_data
 def load_csv(path: Path) -> pd.DataFrame:
     return pd.read_csv(path)
+
+@st.cache_data(show_spinner=False)
+def load_era5_merged(csv_path: Path = ERA5_MERGED_CSV_PATH) -> pd.DataFrame:
+    """
+    Expected columns include:
+    year, cwd, rx1day, rx5day, pr, prpercent, r20mm, r50mm, r95ptot, ...
+    """
+    if not csv_path.exists():
+        raise FileNotFoundError(f"ERA5 merged CSV not found at: {csv_path}")
+
+    df = pd.read_csv(csv_path)
+
+    # make 'year' usable everywhere
+    if "year" in df.columns:
+        df["year"] = pd.to_numeric(df["year"], errors="coerce").astype("Int64")
+
+    return df
 
 st.set_page_config(page_title="Island of Storms — Overview", layout="wide")
 
