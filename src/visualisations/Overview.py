@@ -186,8 +186,8 @@ def render_intensity_frequency_timeseries(par_df: pd.DataFrame, landfall_df: pd.
         within PAR decline, highlighting the need to distinguish between **exposure** and **impact**.
 
         **Reference:**  
-        [Basconcillo, J. and Bangquiao, N. (2025), Recent increase in the number of Super Typhoons in the Philippines]
-        (https://www.sciencedirect.com/science/article/pii/S2225603225000402)
+        Basconcillo, J. and Bangquiao, N. (2025), Recent increase in the number of Super Typhoons in the Philippines
+        https://www.sciencedirect.com/science/article/pii/S2225603225000402
         """
     )
     with st.expander("Data provenance notes"):

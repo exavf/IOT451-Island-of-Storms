@@ -114,7 +114,8 @@ def render_spatio_temporal_explorer(
     par_geojson: Path | None = None,
 ) -> None:
     st.title("Spatio-Temporal Explorer")
-    st.caption("Landfall tracks over time (v4).")
+    st.caption("This explorer visualises how tropical cyclones move through space and time within the Philippine Area of Responsibility (PAR). " \
+    "Instead of focusing on where storms make landfall, it captures their full trajectories, showing how systems approach, traverse, and exit the region.")
 
     if not ph_geojson.exists():
         st.error("Missing philippines.geojson")
@@ -161,8 +162,8 @@ def render_spatio_temporal_explorer(
         # map behaviour
         map_mode = st.selectbox(
             "Map mode",
-            ["Landfall points", "Heatmap", "Tracks (selected only)"],
-            index=1,
+            ["Heatmap", "Tracks (selected only)"],
+            index=0,
         )
 
         # track colouring (only matters for tracks)
@@ -330,12 +331,32 @@ def render_spatio_temporal_explorer(
     left, right = st.columns([2.6, 1.4])
 
     with left:
-        st.subheader("Philippines + Tracks")
+        st.subheader("PH Tropical Cyclone Tracks & Heatmaps")
         st.pydeck_chart(
             pdk.Deck(layers=layers, initial_view_state=view, tooltip=tooltip, map_style=None),
             use_container_width=True,
         )
-        st.caption("Colour: TD (grey), TS (blue), TY (orange), STY (red).")
+        st.caption("Track colours: Tropical Depression (grey), Tropical Storm (blue), Typhoon (orange), Super Typhoon (red).")
+        st.markdown("#### Why this matters")
+        st.write("Storm counts flatten the story. Following storms through space and time shows where exposure accumulates and how systems " \
+        "behave inside PAR—insight that matters for risk in an archipelagic country like the Philippines.")
+        st.markdown("""
+        #### What this section shows:
+
+        - Storm tracks and spatial density within PAR (1950–2023)
+
+        - How exposure patterns vary across time
+
+        - Regions of persistent or emerging cyclone activity
+
+        #### What we can learn:
+
+        - Whether storm pathways have shifted geographically
+
+        - If exposure is concentrating in specific corridors
+
+        - How spatial behaviour complements frequency-based trends
+                 """)
 
 
     with right:
