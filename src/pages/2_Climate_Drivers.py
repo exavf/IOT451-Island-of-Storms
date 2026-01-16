@@ -9,7 +9,7 @@ from visualisations.climate_drivers import render_visual_1_baselines, render_vis
 
 PAR_V3 = Path("data/processed/IBTrACS/v3_within_par/ibtracs_par_1950_2023_storms_3.csv")
 LANDFALL_V4 = Path("data/processed/IBTrACS/v4_landfall/ibtracs_ph_landfall_1950_2023_storms.csv")
-ERA5_MERGED_CSV_PATH = Path("data/processed/era5/merged_era5_data.csv")
+ERA5_MERGED_CSV_PATH = Path("data/processed/ERA5/merged_era5_data.csv")
 # redundant from overview, ok for standalone page
 @st.cache_data
 def load_csv(path: Path) -> pd.DataFrame:

@@ -1,5 +1,10 @@
 # 1. Introduction, Scope and Context
 
+Preview
+![timeseries](data/assets/photos/timeseries.png)
+![climate_trends](data/assets/photos/climate_trends.png)
+![spatio_temporal](data/assets/photos/spatio_temporal_explorer.png)
+
 ## 1.1 Introduction 
 
 The Philippines is located in one of the most active typhoon belts in the world. With warm ocean waters and a position near the equator, typhoons occur regularly. On average, twenty tropical cyclones enter the **Philippine Area of Responsibility (PAR)** every year.
@@ -158,3 +163,21 @@ Interactivity is built into each page to support different user needs (quick ins
 - This ensures the dashboard behaves like a true data product: users can interrogate the data rather than passively view static plots.
 
 ## 3.4 Version Control and Deployment
+
+# 4. Conclusions and Reflection
+
+# 4.1 Conclusions
+
+This dashboard examined long-term typhoon exposure and rainfall extremes in the Philippines by separating storms that enter the Philippine Area of Responsibility from those that make landfall. This distinction matters. Many storms pass through the region, but only a subset translate into direct national impact, and that subset shows a different intensity profile.
+
+Spatio-temporal analysis reveals persistent storm corridors rather than uniform risk, while climate driver analysis suggests that years with more storms tend to coincide with stronger rainfall extremes. These relationships are exploratory, not causal, but they provide important context for understanding how typhoon activity and rainfall extremes vary together over time.
+
+# 4.2 Reflection
+
+Having survived Super Typhoon Haiyan in 2013, this project holds personal meaning. As a child, typhoons felt sudden and isolated. Working with decades of data reframed that experience, placing individual events within longer patterns of exposure, recurrence, and variability.
+
+The project also highlighted that effective time and scope management is an area of ongoing development. Forecasting models were initially planned but were removed due to limited time available for proper implementation and validation. This resulted in a narrower scope and a focus on descriptive analysis, reinforcing the importance of realistic planning and prioritisation in future work.
+
+With the project, I acquired hands-on experience with large typhoon and climate datasets. I was able to learn about the process of preparing and merging IBTrACS cyclone datasets, applying polygon filters, and incorporating ERA5 climate datasets from the World Bank Group Climate Change Knowledge Portal. I was also able to work with GeoJSON datasets, create data workflows, and visualize complex datasets.
+
+These skills provide a good foundation for me to develop from. In the future, my aim is to enhance the dashboard with more accurate time data and sophisticated analysis, beginning with the current typhoon and climate data streams. This project helped to further develop my passion for data analysis and geospatial applications in real-world climate risk and disaster responses.
