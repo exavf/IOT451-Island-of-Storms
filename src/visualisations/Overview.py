@@ -264,18 +264,7 @@ def render_overview_exposure_vs_impact(par_df: pd.DataFrame, landfall_df: pd.Dat
     c4.metric("Severity shift (TY+STY share)", f"{severity_shift_pp:+.1f} pp")
 
     st.caption(
-        "A negative severity shift value means fewer high-intensity storms in the landfall subset. It's calculated as:"
-    )
-    
-    st.latex(
-    r"""
-    \text{Severity shift}
-    =
-    (\text{TY} + \text{STY})_{\text{landfall}}
-    -
-    (\text{TY} + \text{STY})_{\text{PAR}},
-    \quad
-    """
+        "A negative severity shift value means fewer high-intensity storms in the landfall subset."
     )
 
     if start_year is not None and end_year is not None:

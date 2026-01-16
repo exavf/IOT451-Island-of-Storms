@@ -335,12 +335,19 @@ def render_visual_2A_correlation_heatmap(
 
     st.pyplot(fig, clear_figure=True)
 
-    st.write(
-        "Pearson correlation coefficients quantify the strength and direction of linear association "
-        "between two variables, ranging from −1 (strong negative) to +1 (strong positive)."
-    )
-
     st.caption(
         "Exploratory Pearson correlations. Useful for screening relationships, not causal inference."
     )
 
+    st.write("""
+    **What this suggests**  
+    Years with more storms entering the Philippine Area of Responsibility tend to coincide with
+    more frequent and intense rainfall extremes (notably **R50mm**, **R95pTOT**, and **R20mm**),
+    while links to rainfall persistence and dry spells are weaker.  
+    These associations are exploratory and indicate co-variation rather than causation.
+             """)
+    
+    st.caption(
+        "Pearson correlation coefficients quantify the strength and direction of linear association "
+        "between two variables, ranging from −1 (strong negative) to +1 (strong positive)."
+    )
