@@ -164,6 +164,13 @@ Interactivity is built into each page to support different user needs (quick ins
 
 ## 3.4 Version Control and Deployment
 
+Version control was used throughout development to track changes, demonstrate authorship, and support reproducibility. The project was developed in a structured Git repository with regular commits capturing incremental updates to data processing, visualisation, and interface logic.
+
+The dashboard is deployed using Streamlit and hosted at https://phtyphoons.streamlit.app
+It is intended for desktop and laptop use and is not optimised for mobile devices. 
+
+The application entry point is src/Overview.py, which initialises the dashboard and defines the page structure.
+
 # 4. Conclusions and Reflection
 
 # 4.1 Conclusions
